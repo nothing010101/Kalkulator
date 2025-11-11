@@ -13,6 +13,10 @@ export default function BTCCalculator() {
   const [isOnline, setIsOnline] = useState(false)
   const [lastUpdate, setLastUpdate] = useState(new Date())
   
+  // State baru untuk lot manual
+  const [lotMode, setLotMode] = useState('auto') // 'auto' atau 'manual'
+  const [manualLot, setManualLot] = useState(0.05)
+  
   const leverage = 1000
   
   const fetchPrice = async () => {
@@ -70,17 +74,21 @@ export default function BTCCalculator() {
     slDistance = entry - sl
   }
   
-  const lotSize = (riskAmount / slDistance).toFixed(3)
+  // Perhitungan lot - auto atau manual
+  const autoLotSize = (riskAmount / slDistance).toFixed(3)
+  const lotSize = lotMode === 'manual' ? manualLot.toFixed(3) : autoLotSize
+  
   const positionValue = entry * parseFloat(lotSize)
   const marginRequired = positionValue / leverage
+  const actualRisk = slDistance * parseFloat(lotSize)
   
   const profit1 = Math.abs(tp1 - entry) * parseFloat(lotSize)
   const profit2 = Math.abs(tp2 - entry) * parseFloat(lotSize)
   const profit3 = Math.abs(tp3 - entry) * parseFloat(lotSize)
   
-  const rr1 = (profit1 / riskAmount).toFixed(2)
-  const rr2 = (profit2 / riskAmount).toFixed(2)
-  const rr3 = (profit3 / riskAmount).toFixed(2)
+  const rr1 = (profit1 / actualRisk).toFixed(2)
+  const rr2 = (profit2 / actualRisk).toFixed(2)
+  const rr3 = (profit3 / actualRisk).toFixed(2)
   
   const formatCurrency = (val) => {
     if (currency === 'IDR') {
@@ -122,6 +130,14 @@ export default function BTCCalculator() {
           background: #3b82f6;
           cursor: pointer;
           border: none;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
         }
       `}</style>
 
@@ -206,10 +222,90 @@ export default function BTCCalculator() {
               <span>5%</span>
             </div>
             <div className="mt-4 bg-slate-700 rounded-lg p-3">
-              <div className="text-sm text-slate-400">Risk Amount</div>
-              <div className="text-xl font-bold text-red-400">{formatCurrency(riskAmount)}</div>
+              <div className="text-sm text-slate-400">
+                {lotMode === 'manual' ? 'Actual Risk' : 'Risk Amount'}
+              </div>
+              <div className="text-xl font-bold text-red-400">
+                {formatCurrency(lotMode === 'manual' ? actualRisk : riskAmount)}
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* LOT SIZE CONTROL - FITUR BARU */}
+        <div className="bg-gradient-to-r from-yellow-600 to-orange-600 rounded-xl p-6 mb-6 shadow-xl">
+          <label className="block text-sm font-medium mb-3">⚙️ Lot Size Control</label>
+          
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => setLotMode('auto')}
+              className={`py-3 rounded-xl font-bold transition ${
+                lotMode === 'auto'
+                  ? 'bg-white text-orange-600'
+                  : 'bg-white/20 text-white'
+              }`}
+            >
+              🤖 Auto Calculate
+            </button>
+            <button
+              onClick={() => setLotMode('manual')}
+              className={`py-3 rounded-xl font-bold transition ${
+                lotMode === 'manual'
+                  ? 'bg-white text-orange-600'
+                  : 'bg-white/20 text-white'
+              }`}
+            >
+              ✏️ Manual Input
+            </button>
+          </div>
+
+          {lotMode === 'manual' && (
+            <div className="bg-white/10 rounded-lg p-4">
+              <label className="block text-sm mb-2">Enter Your Lot Size:</label>
+              <input
+                type="number"
+                step="0.01"
+                value={manualLot}
+                onChange={(e) => setManualLot(parseFloat(e.target.value) || 0.01)}
+                className="w-full bg-slate-700 rounded-lg px-4 py-3 text-2xl font-bold text-center outline-none"
+                placeholder="0.05"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setManualLot(0.01)}
+                  className="flex-1 py-2 bg-slate-700 rounded-lg text-sm hover:bg-slate-600"
+                >
+                  0.01
+                </button>
+                <button
+                  onClick={() => setManualLot(0.05)}
+                  className="flex-1 py-2 bg-slate-700 rounded-lg text-sm hover:bg-slate-600"
+                >
+                  0.05
+                </button>
+                <button
+                  onClick={() => setManualLot(0.10)}
+                  className="flex-1 py-2 bg-slate-700 rounded-lg text-sm hover:bg-slate-600"
+                >
+                  0.10
+                </button>
+                <button
+                  onClick={() => setManualLot(0.50)}
+                  className="flex-1 py-2 bg-slate-700 rounded-lg text-sm hover:bg-slate-600"
+                >
+                  0.50
+                </button>
+              </div>
+            </div>
+          )}
+
+          {lotMode === 'auto' && (
+            <div className="bg-white/10 rounded-lg p-4 text-center">
+              <div className="text-sm text-white/70 mb-2">Recommended Lot Size:</div>
+              <div className="text-3xl font-bold text-yellow-300">{autoLotSize} BTC</div>
+              <div className="text-xs text-white/60 mt-2">Based on {riskPercent}% risk</div>
+            </div>
+          )}
         </div>
 
         {/* Position Type */}
@@ -247,6 +343,9 @@ export default function BTCCalculator() {
             <div className="bg-slate-900 rounded-lg p-4 text-center">
               <div className="text-sm text-slate-400">Lot Size</div>
               <div className="text-2xl font-bold text-yellow-400">{lotSize}</div>
+              {lotMode === 'manual' && (
+                <div className="text-xs text-yellow-300 mt-1">Manual</div>
+              )}
             </div>
             <div className="bg-slate-900 rounded-lg p-4 text-center">
               <div className="text-sm text-slate-400">Position</div>
@@ -279,6 +378,10 @@ export default function BTCCalculator() {
               <div className="flex justify-between">
                 <span>Volume:</span>
                 <span className="font-bold text-yellow-400">{lotSize} lot</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Max Loss:</span>
+                <span className="font-bold text-red-400">{formatCurrency(actualRisk)}</span>
               </div>
             </div>
           </div>
@@ -331,8 +434,12 @@ export default function BTCCalculator() {
         </div>
 
         {/* Footer */}
-        <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-xl p-4 text-sm text-yellow-100">
+        <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-xl p-4 text-sm text-yellow-100 mb-4">
           ⚠️ <strong>Warning:</strong> Gunakan Stop Loss. Data update otomatis setiap 5 detik. Trading berisiko tinggi.
+        </div>
+
+        <div className="text-center text-slate-400 text-sm pb-4">
+          Made with ❤️ for MT5 Traders | {lotMode === 'manual' ? 'Manual Lot Mode' : 'Auto Calculate Mode'}
         </div>
       </div>
     </div>
